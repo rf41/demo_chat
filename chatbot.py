@@ -168,14 +168,6 @@ def chatbot_response(user_input):
 st.title("Chatbot Interface")
 st.write("Chat with the chatbot like ChatGPT")
 
-# Add custom CSS to hide the GitHub icon
-hide_github_icon = """
-#GithubIcon {
-  visibility: hidden;
-}
-"""
-st.markdown(hide_github_icon, unsafe_allow_html=True)
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
