@@ -165,8 +165,8 @@ def chatbot_response(user_input):
         return f"Terjadi kesalahan: {e}"
 
 # Streamlit UI
-st.title("Chatbot Interface")
-st.write("Chat with the chatbot like ChatGPT")
+st.title("Chatbot Agent")
+st.write("Tulis pertanyaan Anda..")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
