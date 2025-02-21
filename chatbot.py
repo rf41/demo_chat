@@ -115,7 +115,7 @@ def check_openai_connection():
         if response.status_code == 200:
             return True
     except requests.RequestException as e:
-        print(f"Koneksi ke OpenAI gagal: {e}")
+        print(f"Koneksi ke model gagal: {e}")
         return False
 
 # Inisialisasi LLM
@@ -155,7 +155,7 @@ def chatbot_response(user_input):
     ]
     try:
         if not check_openai_connection():
-            return "Koneksi gagal. Silakan coba lagi nanti."
+            return "Koneksi ke model gagal. Silakan coba lagi nanti."
         response = openai.ChatCompletion.create(
             model=st.secrets["PINECONE_API_KEY"],
             messages=messages
