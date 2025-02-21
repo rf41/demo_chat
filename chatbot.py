@@ -9,13 +9,14 @@ import pinecone
 from pinecone import Pinecone, ServerlessSpec
 from rank_bm25 import BM25Okapi
 import requests
+import base64
 
-# Set environment variables
-os.environ['PINECONE_API_KEY'] = "pcsk_3UWeFv_Uo2fSg6mqnDxUVmdbssxdikUHbgpZCDziaBmJp2Co1E74dkMR5j1qRWEzoED6c4"
-os.environ['OPENAI_API_KEY'] = "your-actual-api-key-here"  # Replace with your actual OpenAI API key
+# Set environment variables from secrets
+os.environ['PINECONE_API_KEY'] = st.secrets["PINECONE_API_KEY"]
+os.environ['OPENAI_API_KEY'] = st.secrets["OPENAI_API_KEY"]
 
-# Configure OpenAI API
-OPENAI_API_BASE = "https://text.pollinations.ai/openai"
+# Decode the OpenAI API base URL from secrets
+OPENAI_API_BASE = st.secrets["OPENAI_API_BASE"]
 OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
 openai.api_key = OPENAI_API_KEY
 
