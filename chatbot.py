@@ -157,7 +157,7 @@ def chatbot_response(user_input):
         if not check_openai_connection():
             return "Koneksi ke model gagal. Silakan coba lagi nanti."
         response = openai.ChatCompletion.create(
-            model=st.secrets["PINECONE_API_KEY"],
+            model=st.secrets["TEXT_MODEL "],
             messages=messages
         )
         return response.choices[0].message['content']
