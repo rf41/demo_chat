@@ -40,7 +40,7 @@ texts = text_splitter.split_documents(documents)
 pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
 
 # Create or load the Pinecone index
-index_name = "optik-chatbot"  # Replace with your index name
+index_name = st.secrets["PINECONE_INDEX_NAME"]  # Replace with your index name
 if index_name not in pc.list_indexes().names():
     pc.create_index(
         name=index_name,
@@ -59,7 +59,7 @@ def generate_embeddings(texts):
         print(f"Generating embeddings for texts: {texts}")  # Debug statement
         response = openai.Embedding.create(
             input=texts,
-            model="text-embedding-ada-002"
+            model=st.secrets["TEXT_MODEL "]
         )
         embeddings = [embedding['embedding'] for embedding in response['data']]
         print(f"Generated embeddings: {embeddings}")  # Debug statement
