@@ -172,7 +172,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Checkbox to use knowledge base (default checked and disabled)
-use_knowledge_base = st.checkbox("Use Knowledge Base", value=True, disabled=True)
+use_knowledge_base = st.checkbox("Gunakan Knowledge Base", value=True, disabled=True)
 
 # Input form in the center
 st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
