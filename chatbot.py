@@ -59,7 +59,7 @@ def generate_embeddings(texts):
         print(f"Generating embeddings for texts: {texts}")  # Debug statement
         response = openai.Embedding.create(
             input=texts,
-            model=st.secrets["TEXT_MODEL "]
+            model=st.secrets["TEXT_MODEL"]
         )
         embeddings = [embedding['embedding'] for embedding in response['data']]
         print(f"Generated embeddings: {embeddings}")  # Debug statement
@@ -102,7 +102,7 @@ class OpenAIEmbeddingModel:
             print(f"Error embedding query: {e}")
             return None
 
-embedding_model = OpenAIEmbeddingModel(model="text-embedding-ada-002", api_key=OPENAI_API_KEY)
+embedding_model = OpenAIEmbeddingModel(model=st.secrets["TEXT_MODEL"], api_key=OPENAI_API_KEY)
 vectorstore = PineconeVectorStore(index, embedding_model, text_key="page_content")
 
 # Initialize BM25
@@ -157,7 +157,7 @@ def chatbot_response(user_input):
         if not check_openai_connection():
             return "Koneksi ke model gagal. Silakan coba lagi nanti."
         response = openai.ChatCompletion.create(
-            model=st.secrets["TEXT_MODEL "],
+            model=st.secrets["MODEL"],
             messages=messages
         )
         return response.choices[0].message['content']
