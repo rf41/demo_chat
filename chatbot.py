@@ -185,7 +185,17 @@ if submit_button and user_input:
     # Clear previous messages
     st.session_state.messages = []
     st.session_state.messages.append({"role": "user", "content": user_input})
+    
+    # Create a placeholder for the loading message
+    loading_placeholder = st.empty()
+    loading_placeholder.markdown("⏳ Bot sedang mencari jawaban... Mohon tunggu sebentar.")
+    
+    # Get response
     response = chatbot_response(user_input)
+    
+    # Remove loading message
+    loading_placeholder.empty()
+    
     st.session_state.messages.append({"role": "bot", "content": response})
 
 # Display messages
