@@ -111,7 +111,7 @@ bm25 = BM25Okapi(tokenized_texts)
 
 def check_openai_connection():
     try:
-        response = requests.get(f"{OPENAI_API_BASE}/v1/engines", timeout=5)
+        response = requests.get(f"{OPENAI_API_BASE}", timeout=5)
         if response.status_code == 200:
             return True
     except requests.RequestException as e:
