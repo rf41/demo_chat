@@ -160,7 +160,7 @@ def chatbot_response(user_input):
         return f"Terjadi kesalahan: {e}"
 
 # Streamlit UI
-st.title("Chatbot Agent")
+st.title("Ridwan's Chatbot")
 st.write("Silakan tanyakan seputar profile saya. Semua informasi berasal dari CV Linkedin.")
 
 if "messages" not in st.session_state:
