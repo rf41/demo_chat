@@ -167,7 +167,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Checkbox to use knowledge base (default checked and disabled)
-use_knowledge_base = st.checkbox("Gunakan Knowledge Base", value=True, disabled=True)
+use_knowledge_base = st.checkbox("Use Knowledge Base", value=True, disabled=True)
 
 # Input form in the center
 st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
@@ -183,7 +183,7 @@ if submit_button and user_input:
     
     # Create a placeholder for the loading message
     loading_placeholder = st.empty()
-    loading_placeholder.markdown("⏳ Bot sedang mencari jawaban... Mohon tunggu sebentar.")
+    loading_placeholder.markdown("⏳ Reading the CV, please wait.")
     
     # Get response
     response = chatbot_response(user_input)
