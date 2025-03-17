@@ -131,13 +131,8 @@ def chatbot_response(user_input):
     
     retrieved_docs = []
     if vectorstore and user_input:
-        print(f"Embedding user query: {user_input}")  # Debug statement
         retrieved_docs = vectorstore.similarity_search(user_input, k=10) if vectorstore else []
-        print(f"Dokumen yang ditemukan: {retrieved_docs}")  # Debug statement
         faiss_results = ''.join([doc.page_content[:200] + '...' for doc in retrieved_docs if hasattr(doc, 'page_content')])  # Menampilkan 200 karakter pertama dari tiap hasil
-        st.markdown(f"### Hasil Pencarian:")
-        st.markdown(f"```{faiss_results}```")
-        
         context = "".join([doc.page_content for doc in retrieved_docs if hasattr(doc, 'page_content')])
     else:
         context = ""
@@ -200,4 +195,7 @@ if submit_button and user_input:
 
 # Display messages
 for message in st.session_state.messages:
-    st.write(f"Bot: {message['content']}")
+    if message["role"] == "user":
+        st.write(f"You: {message['content']}")
+    else:
+        st.write(f"Bot: {message['content']}")
