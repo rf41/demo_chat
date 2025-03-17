@@ -3,6 +3,5 @@ openai==0.27.0
 langchain
 langchain-pinecone
 PyMuPDF
-pinecone-client
 rank-bm25
 requests

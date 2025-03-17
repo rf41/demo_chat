@@ -166,8 +166,7 @@ def chatbot_response(user_input):
 
 # Streamlit UI
 st.title("Chatbot Agent")
-st.write("Model ini adalah chatbot yang dilatih menggunakan OpenAI GPT-3. Anda dapat mengajukan pertanyaan seputar dokumen PDF yang telah dimuat.")
-st.write("Dokumen PDF yang telah dimuat seputar wifi, jaringan, pengelolaan akun, vpn dan live youtube ..")
+st.write("Silakan tanyakan seputar topik Pengadilan Pajak..")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
