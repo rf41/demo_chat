@@ -161,7 +161,7 @@ def chatbot_response(user_input):
 
 # Streamlit UI
 st.title("Ridwan's Chatbot")
-st.write("Silakan tanyakan seputar profile saya. Semua informasi berasal dari CV Linkedin.")
+st.write("Ask me anything about my profile. All information is sourced from my LinkedIn CV.")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
