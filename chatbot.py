@@ -200,7 +200,4 @@ if submit_button and user_input:
 
 # Display messages
 for message in st.session_state.messages:
-    if message["role"] == "user":
-        st.write(f"You: {message['content']}")
-    else:
-        st.write(f"Bot: {message['content']}")
+    st.write(f"Bot: {message['content']}")
