@@ -183,7 +183,7 @@ if submit_button and user_input:
     
     # Create a placeholder for the loading message
     loading_placeholder = st.empty()
-    loading_placeholder.markdown("⏳ Reading the CV, please wait.")
+    loading_placeholder.markdown("⏳ Reading the CV and Posts, please wait.")
     
     # Get response
     response = chatbot_response(user_input)
