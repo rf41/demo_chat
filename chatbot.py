@@ -267,9 +267,8 @@ for message in st.session_state.messages:
         st.markdown(f"""
         <div class="chat-message bot">
             <div class="message-header">Bot</div>
+            <div class="message-content">{st.markdown(message['content'])}</div>
         </div>
         """, unsafe_allow_html=True)
-        # Use Streamlit's markdown function to render the content with proper Markdown formatting
-        st.markdown(message['content'])
 
 st.markdown("</div>", unsafe_allow_html=True)
