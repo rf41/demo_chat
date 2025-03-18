@@ -267,17 +267,15 @@ for message in st.session_state.messages:
         # Create a container for each message
         message_container = st.container()
         
-        # Use columns to create the visual structure
+        # Use a vertical layout instead of columns
         with message_container:
-            col1, col2 = st.columns([0.1, 0.9])
-            with col1:
-                st.markdown("**Bot**", unsafe_allow_html=True)
+            # Display "Bot" label above the message
+            st.markdown("<div style='font-weight: bold; margin-bottom: 5px;'>Answer</div>", unsafe_allow_html=True)
             
-            # Apply custom styling to the container and render markdown content properly
-            with col2:
-                st.markdown(message['content'])
+            # Display the message content with markdown support
+            st.markdown(message['content'])
             
             # Add separator for visual distinction
-            st.markdown("<hr style='margin: 5px 0; opacity: 0.3'>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 10px 0; opacity: 0.3'>", unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
