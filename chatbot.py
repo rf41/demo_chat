@@ -225,7 +225,12 @@ st.markdown("""
     display: flex;
     flex-direction: column-reverse;
 }
-
+.st-emotion-cache-12fmjuu{
+    display: none!important;
+}
+header{
+    display: none!important;
+}
 </style>
 """, unsafe_allow_html=True)
 
