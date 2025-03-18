@@ -3,8 +3,10 @@ import openai
 import os
 import fitz
 import requests
+import time  # Added explicit import for time
+import json  # For JSON handling
 from functools import lru_cache
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from langchain_pinecone import PineconeVectorStore
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema import Document
@@ -69,10 +71,14 @@ class OpenAIEmbeddingModel:
     def __init__(self, model: str, api_key: str):
         self.model = model
         self.api_key = api_key
-        self.max_tokens_per_batch = 8000  # OpenAI's limit for text-embedding models
+        openai.api_key = api_key  # Ensure API key is set for this instance
     
     @lru_cache(maxsize=100)
     def embed_query(self, query: str) -> Optional[List[float]]:
+        """Embed a single query string"""
+        if not query or not query.strip():
+            return None
+            
         try:
             response = openai.Embedding.create(
                 input=[query],
@@ -84,99 +90,148 @@ class OpenAIEmbeddingModel:
             return None
     
     def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings in batches to avoid token limits"""
+        """Generate embeddings in batches with robust error handling"""
+        if not texts:
+            return []
+            
         all_embeddings = []
+        batch_size = 5  # Smaller batch size for reliability
         
-        # Process in smaller batches
-        batch_size = 16  # Process fewer documents at once
-        
-        try:
+        with st.progress(0) as progress_bar:
             for i in range(0, len(texts), batch_size):
-                batch_texts = texts[i:i+batch_size]
-                
-                # Check if any texts are too long and truncate if necessary
-                processed_texts = []
-                for text in batch_texts:
-                    # Approximate token count (rough estimate)
-                    if len(text) > 5000:  # Approximately 4000 tokens
-                        text = text[:5000]  # Truncate long texts
-                    processed_texts.append(text)
-                
-                # Generate embeddings for this batch
-                response = openai.Embedding.create(
-                    input=processed_texts,
-                    model=self.model
-                )
-                
-                # Extract embeddings
-                batch_embeddings = [item['embedding'] for item in response['data']]
-                all_embeddings.extend(batch_embeddings)
-                
-                # Add a small delay to avoid rate limiting
-                if i + batch_size < len(texts):
-                    import time
+                try:
+                    # Update progress
+                    progress = min(i / len(texts), 1.0) if texts else 0
+                    progress_bar.progress(progress)
+                    
+                    # Get batch of texts
+                    batch_texts = texts[i:i+batch_size]
+                    
+                    # Process each text to ensure it's valid
+                    processed_texts = []
+                    for text in batch_texts:
+                        if not text or not isinstance(text, str):
+                            processed_texts.append(" ")  # Use blank space for empty/invalid texts
+                            continue
+                            
+                        # Truncate long texts (more conservative limit)
+                        if len(text) > 4000:  
+                            text = text[:4000]
+                        processed_texts.append(text)
+                    
+                    # Skip if all texts were invalid
+                    if not processed_texts or all(not text.strip() for text in processed_texts):
+                        continue
+                        
+                    # Generate embeddings for this batch
+                    response = openai.Embedding.create(
+                        input=processed_texts,
+                        model=self.model
+                    )
+                    
+                    # Extract embeddings
+                    batch_embeddings = [item['embedding'] for item in response['data']]
+                    all_embeddings.extend(batch_embeddings)
+                    
+                    # Add a delay to avoid rate limiting
                     time.sleep(0.5)
                     
-        except Exception as e:
-            st.error(f"Error generating embeddings: {str(e)}")
-            # Return partial embeddings if we got any
-            if not all_embeddings:
-                return []
+                except Exception as e:
+                    st.error(f"Error in batch {i//batch_size + 1}: {str(e)}")
+                    # Continue with next batch
+                    time.sleep(1)  # Longer delay after error
         
         return all_embeddings
 
 # Pinecone vector store setup
 def setup_pinecone(config: Dict[str, str], documents: List[Document], embedding_model: OpenAIEmbeddingModel):
-    """Setup or connect to Pinecone index"""
+    """Setup or connect to Pinecone index with better error handling"""
     try:
+        # Initialize Pinecone
         pc = Pinecone(api_key=config['pinecone_api_key'])
         index_name = config['index_name']
         
-        # Create index if it doesn't exist
-        if index_name not in pc.list_indexes().names():
+        # Check if index exists
+        indexes = pc.list_indexes()
+        if not hasattr(indexes, 'names') or index_name not in indexes.names():
+            st.info(f"Creating new Pinecone index: {index_name}")
             pc.create_index(
                 name=index_name,
-                dimension=1536,
+                dimension=1536,  # OpenAI embedding dimension
                 metric='cosine',
-                spec=ServerlessSpec(cloud='aws', region='us-west1')
+                spec=ServerlessSpec(cloud='aws', region='us-west-2')  # Changed to us-west-2
             )
+            # Wait for index to be ready
+            time.sleep(10)
         
+        # Connect to index
         index = pc.Index(index_name)
         
-        # Generate and store embeddings
-        texts_content = [doc.page_content for doc in documents]
+        # Prepare documents for embedding
+        if not documents:
+            st.warning("No documents to embed")
+            return None
+            
+        # Extract text content
+        texts_content = []
+        for doc in documents:
+            if hasattr(doc, 'page_content') and doc.page_content:
+                texts_content.append(doc.page_content)
         
-        # Show progress for embedding generation
+        if not texts_content:
+            st.warning("No valid content found in documents")
+            return None
+        
+        # Generate embeddings
         with st.spinner("Generating embeddings... This may take a while."):
             embeddings = embedding_model.generate_embeddings(texts_content)
         
-        # Upsert embeddings to Pinecone
-        if embeddings:
-            if len(embeddings) != len(texts_content):
-                st.warning(f"Warning: Generated {len(embeddings)} embeddings for {len(texts_content)} documents. Some documents may be missing.")
+        if not embeddings:
+            st.error("Failed to generate embeddings")
+            return None
+            
+        # Upsert to Pinecone
+        with st.spinner(f"Storing {len(embeddings)} embeddings in Pinecone..."):
+            # Smaller batches for Pinecone
+            batch_size = 20
+            
+            for i in range(0, len(embeddings), batch_size):
+                end_idx = min(i + batch_size, len(embeddings))
+                batch_docs = documents[i:end_idx] if i < len(documents) else []
+                batch_embeddings = embeddings[i:end_idx]
                 
-            # Upsert available embeddings
-            with st.spinner("Storing embeddings in Pinecone..."):
-                batch_size = 50  # Smaller batch size to avoid timeouts
-                for i in range(0, len(embeddings), batch_size):
-                    batch_docs = documents[i:min(i+batch_size, len(embeddings))]
-                    batch_embeddings = embeddings[i:i+batch_size]
-                    
-                    batch_items = []
-                    for j, (doc, embedding) in enumerate(zip(batch_docs, batch_embeddings)):
-                        # Create a unique ID for each document chunk
+                if not batch_docs or not batch_embeddings or len(batch_docs) != len(batch_embeddings):
+                    continue
+                
+                vectors_to_upsert = []
+                for j, (doc, embedding) in enumerate(zip(batch_docs, batch_embeddings)):
+                    try:
+                        # Create unique ID and metadata
                         doc_id = f"doc_{i+j}"
-                        # Include metadata with the document
-                        metadata = {"text": doc.page_content[:100]}  # Include a preview of content
-                        batch_items.append((doc_id, embedding, metadata))
-                    
-                    # Upsert this batch
-                    index.upsert(vectors=[(id, vector, meta) for id, vector, meta in batch_items])
+                        metadata = {"text": doc.page_content[:100] if hasattr(doc, 'page_content') else ""}
+                        
+                        # Add to batch
+                        vectors_to_upsert.append({
+                            "id": doc_id,
+                            "values": embedding,
+                            "metadata": metadata
+                        })
+                    except Exception as e:
+                        st.error(f"Error processing document {i+j}: {str(e)}")
+                
+                # Upsert batch if we have vectors
+                if vectors_to_upsert:
+                    try:
+                        index.upsert(vectors=vectors_to_upsert)
+                        time.sleep(0.5)  # Small delay between batches
+                    except Exception as e:
+                        st.error(f"Error upserting batch: {str(e)}")
         
-        return PineconeVectorStore(index, embedding_model, text_key="page_content")
-    
+        # Create PineconeVectorStore
+        return PineconeVectorStore(index, embedding_model, text_key="text")
+        
     except Exception as e:
-        st.error(f"Error setting up Pinecone: {str(e)}")
+        st.error(f"Error in Pinecone setup: {str(e)}")
         return None
 
 def check_openai_connection(api_base: str) -> bool:
@@ -190,47 +245,70 @@ def check_openai_connection(api_base: str) -> bool:
 # Chatbot response generation
 def generate_response(
     user_input: str, 
-    vectorstore: PineconeVectorStore,
-    bm25: BM25Okapi, 
+    vectorstore: Optional[PineconeVectorStore],
+    bm25: Optional[BM25Okapi], 
     documents: List[Document],
     config: Dict[str, Any]
 ) -> str:
-    """Generate a response to user input using both BM25 and vector search"""
-    user_input = user_input.strip()
+    """Generate a response to user input using available search methods"""
+    # Input validation
+    user_input = user_input.strip() if user_input else ""
     if not user_input:
         return "Input tidak boleh kosong."
     
-    # BM25 search
-    tokenized_query = user_input.split()
-    top_bm25_docs = bm25.get_top_n(tokenized_query, documents, n=3)
+    context = ""  # Default empty context
     
-    # Vector search
-    vector_docs = []
-    if vectorstore:
-        vector_docs = vectorstore.similarity_search(user_input, k=10)
-    
-    # Combine results and remove duplicates
-    all_docs = top_bm25_docs + vector_docs
-    unique_docs = list({doc.page_content: doc for doc in all_docs}.values())
-    
-    # Create context from combined documents
-    context = "".join([doc.page_content for doc in unique_docs if hasattr(doc, 'page_content')])
-    
-    # Check connection before making API call
-    if not check_openai_connection(config['openai_api_base']):
-        return "Koneksi ke model gagal. Silakan coba lagi nanti."
-    
-    # Generate response with OpenAI
     try:
+        # BM25 search if available
+        if bm25:
+            tokenized_query = user_input.split()
+            top_bm25_docs = bm25.get_top_n(tokenized_query, documents, n=3)
+        else:
+            top_bm25_docs = []
+        
+        # Vector search if available
+        vector_docs = []
+        if vectorstore:
+            try:
+                vector_docs = vectorstore.similarity_search(user_input, k=5)
+            except Exception as e:
+                st.warning(f"Vector search failed: {str(e)}")
+        
+        # Combine results and remove duplicates
+        all_docs = top_bm25_docs + vector_docs
+        if all_docs:
+            # Create context from documents with more robust approach
+            context_parts = []
+            seen_texts = set()
+            
+            for doc in all_docs:
+                if hasattr(doc, 'page_content') and doc.page_content:
+                    text = doc.page_content.strip()
+                    if text and text not in seen_texts:
+                        context_parts.append(text)
+                        seen_texts.add(text)
+            
+            context = "\n\n".join(context_parts)
+        
+        # Check connection before making API call
+        if not context:
+            return "Maaf, saya tidak menemukan informasi yang relevan untuk menjawab pertanyaan ini."
+            
+        # Generate response with OpenAI
         messages = [
             {"role": "system", "content": config['system_prompt']},
-            {"role": "user", "content": f"Konteks: {context}\nPertanyaan: {user_input}"}
+            {"role": "user", "content": f"Konteks: {context}\n\nPertanyaan: {user_input}"}
         ]
+        
         response = openai.ChatCompletion.create(
             model=config['chat_model'],
-            messages=messages
+            messages=messages,
+            temperature=0.7,
+            max_tokens=1000
         )
+        
         return response.choices[0].message['content']
+        
     except Exception as e:
         return f"Terjadi kesalahan: {str(e)}"
 
@@ -257,19 +335,34 @@ def main():
     
     # Load and process documents
     documents = load_documents()
+    if not documents:
+        st.error("No documents were loaded. Please check the data folder.")
+        return
     
     # Process documents - using the fixed approach
     texts = split_documents(documents)
+    if not texts:
+        st.error("Failed to split documents into chunks.")
+        return
     
     # Setup embedding model
     embedding_model = OpenAIEmbeddingModel(model=config['text_model'], api_key=config['openai_api_key'])
     
-    # Setup vector store and BM25
-    vectorstore = setup_pinecone(config, texts, embedding_model)
+    # Set up BM25 first as a fallback
+    tokenized_texts = [doc.page_content.split() for doc in documents if hasattr(doc, 'page_content')]
+    bm25 = BM25Okapi(tokenized_texts) if tokenized_texts else None
     
-    # Set up BM25 regardless of vector store success
-    tokenized_texts = [doc.page_content.split() for doc in documents]
-    bm25 = BM25Okapi(tokenized_texts)
+    # Setup vector store - but allow the app to continue if this fails
+    try:
+        st.info("Setting up Pinecone vector store...")
+        vectorstore = setup_pinecone(config, texts, embedding_model)
+        if vectorstore:
+            st.success("Pinecone vector store setup successful!")
+        else:
+            st.warning("Vector store setup failed. Continuing with BM25 only.")
+    except Exception as e:
+        st.error(f"Failed to set up vector store: {str(e)}")
+        vectorstore = None
     
     # Create UI 
     user_input, submit_button = create_ui()
