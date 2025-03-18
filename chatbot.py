@@ -194,128 +194,178 @@ st.write("Ask me anything about my profile. All information is sourced from my L
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Custom CSS untuk mempercantik tampilan chat (seperti ChatGPT)
+# CSS yang lebih robust untuk responsivitas dan floating input
 st.markdown("""
 <style>
+/* Container utama */
 .main .block-container {
-    padding-top: 2rem;
-    padding-bottom: 6rem;
+    padding-top: 1rem;
+    padding-bottom: 8rem !important; /* Pastikan ada ruang untuk input */
     max-width: 800px;
 }
 
-.chat-message {
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    margin-bottom: 1rem;
+/* Batas utama untuk chat */
+.chat-area {
     display: flex;
     flex-direction: column;
+    height: calc(100vh - 180px);
+    overflow-y: auto;
+    padding-bottom: 100px;
+    margin-bottom: 0;
     position: relative;
-    font-size: 1rem;
-    max-width: 80%;
 }
 
+/* Container chat */
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-bottom: 1rem;
+    width: 100%;
+}
+
+/* Pesan chat */
+.chat-message {
+    padding: 1rem;
+    border-radius: 1rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+    font-size: 1rem;
+    max-width: 85%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Pesan user */
 .chat-message.user {
     background-color: #1e88e5;
     color: white;
-    border: 1px solid #106cc8;
+    border: none;
     align-self: flex-end;
     margin-left: auto;
-    border-top-right-radius: 0;
+    border-top-right-radius: 0.2rem;
 }
 
+/* Pesan bot */
 .chat-message.bot {
-    background-color: #f0f0f0;
+    background-color: #f5f5f5;
     color: #333;
-    border: 1px solid #e0e0e0;
+    border: none;
     align-self: flex-start;
     margin-right: auto;
-    border-top-left-radius: 0;
+    border-top-left-radius: 0.2rem;
 }
 
+/* Konten pesan */
 .chat-message .message-content {
     display: block;
-    margin-top: 0;
     width: 100%;
     white-space: pre-wrap;
     overflow-wrap: break-word;
 }
 
+/* Header pesan */
 .chat-message .message-header {
-    font-size: 0.85rem;
-    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-bottom: 0.3rem;
     opacity: 0.8;
 }
 
-.chat-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding-bottom: 7rem;
-    margin-bottom: 60px;
-}
-
-.input-container {
+/* Input container dengan posisi fixed */
+.input-floating {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     background-color: white;
-    padding: 1rem 1rem 1.5rem 1rem;
+    padding: 1rem;
     z-index: 1000;
-    border-top: 1px solid #e5e5e5;
-    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
-    display: flex;
-    justify-content: center;
+    border-top: 1px solid #e0e0e0;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
 }
 
-.input-container form {
+/* Container input di tengah */
+.input-center {
     max-width: 800px;
-    width: 100%;
+    margin: 0 auto;
+    display: flex;
+}
+
+/* Style untuk input field */
+.stTextInput {
+    flex-grow: 1;
 }
 
 .stTextInput input {
-    border-radius: 0.75rem !important;
-    padding: 0.75rem 1rem !important;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    border: 1px solid #e5e5e5 !important;
+    border-radius: 20px !important;
+    padding: 0.75rem 1.2rem !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    font-size: 1rem !important;
 }
 
-.stButton button {
-    border-radius: 0.75rem !important;
-    padding: 0.25rem 1rem !important;
+/* Style untuk send button */
+.send-button {
+    margin-left: 8px;
+    align-self: center;
 }
 
-.stForm {
-    background-color: transparent !important;
-    border: none !important;
+.send-button button {
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
     padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background-color: #1e88e5 !important;
+    color: white !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
 }
 
-div[data-testid="stFormSubmitButton"] > button {
-    visibility: hidden;
-    position: absolute;
-}
-
-/* Fix untuk memastikan chat tidak tertutup input */
-.main {
-    padding-bottom: 70px;
-}
-
-footer {
+/* Hide Streamlit elements */
+#MainMenu, footer, header {
     visibility: hidden;
 }
 
+/* Pastikan stApp container memiliki overflow yang benar */
 .stApp {
-    margin-bottom: 60px;
+    overflow: hidden;
+}
+
+/* Loading indicator */
+.loading-indicator {
+    display: flex;
+    justify-content: center;
+    margin: 1rem;
+}
+
+.loading-bubble {
+    background-color: #f0f0f0;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Responsivitas untuk layar kecil */
+@media (max-width: 640px) {
+    .chat-message {
+        max-width: 90%;
+        padding: 0.75rem;
+    }
+    
+    .input-floating {
+        padding: 0.75rem;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Chat container with proper spacing for fixed input
-st.markdown('<div style="height: calc(100vh - 200px); overflow-y: auto; padding-bottom: 80px;">', unsafe_allow_html=True)
-st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
+# Main chat area with scroll
+st.markdown('<div class="chat-area">', unsafe_allow_html=True)
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 
-# Display messages in chronological order (oldest first)
+# Display messages
 for message in st.session_state.messages:
     if message["role"] == "user":
         st.markdown(f"""
@@ -325,7 +375,7 @@ for message in st.session_state.messages:
         </div>
         """, unsafe_allow_html=True)
     else:
-        # Proses konten bot untuk memastikan paragraf baru tampil dengan benar
+        # Format content properly
         content = message['content'].replace('\n', '<br>')
         st.markdown(f"""
         <div class="chat-message bot">
@@ -334,53 +384,78 @@ for message in st.session_state.messages:
         </div>
         """, unsafe_allow_html=True)
 
-st.markdown("</div>", unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)  # Close chat-container
+st.markdown('</div>', unsafe_allow_html=True)  # Close chat-area
 
-# Add a placeholder for loading messages
+# Placeholder for loading message
 loading_placeholder = st.empty()
 
-# Input form at the bottom - dengan wrapper tambahan untuk memastikan posisi fixed
+# Custom HTML untuk input floating
 st.markdown("""
-<div style="position: fixed; bottom: 0; left: 0; right: 0; background-color: white; z-index: 9999;">
-    <div class='input-container'>
-        <div style="width: 100%; max-width: 800px;">
-""", unsafe_allow_html=True)
-
-# Input form
-col1, col2 = st.columns([6, 1])
-with col1:
-    user_input = st.text_input("", placeholder="Type your message here...", key="input")
-with col2:
-    submit_button = st.button("Send", key="send")
-    
-st.markdown("""
-        </div>
+<div class="input-floating">
+    <div class="input-center">
+    <!-- Input form diatur melalui Streamlit -->
     </div>
 </div>
 """, unsafe_allow_html=True)
 
+# Input form - dibuat terpisah dari HTML di atas
+col1, col2 = st.columns([8, 1])
+with col1:
+    user_input = st.text_input("", placeholder="Type your message here...", key="input", label_visibility="collapsed")
+with col2:
+    # HTML untuk tombol kirim kustom
+    submit_button = st.button("➤", key="send")
+
 if submit_button and user_input:
-    # Add user message to session state
-    st.session_state.messages.append({"role": "user", "content": user_input})
+    # Simpan input saat ini
+    current_input = user_input
     
-    # Create a placeholder for the loading message
+    # Tambahkan pesan user ke session state
+    st.session_state.messages.append({"role": "user", "content": current_input})
+    
+    # Reset input field
+    st.session_state.input = ""
+    
+    # Tampilkan loading
     loading_placeholder.markdown("""
-    <div style="display: flex; justify-content: center; margin: 1rem;">
-        <div style="background-color: #f0f0f0; padding: 0.5rem 1rem; border-radius: 1rem;">
-            ⏳ Reading the CV, please wait...
+    <div class="loading-indicator">
+        <div class="loading-bubble">
+            ⏳ Processing your request...
         </div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Get response
-    response = chatbot_response(user_input)
+    # Dapatkan respons
+    response = chatbot_response(current_input)
     
-    # Remove loading message
+    # Hapus loading
     loading_placeholder.empty()
     
-    # Add bot response to session state
+    # Tambahkan respons bot
     st.session_state.messages.append({"role": "bot", "content": response})
     
-    # Trigger a rerun to refresh the chat display
+    # Refresh halaman
     st.experimental_rerun()
+
+# JavaScript untuk scroll ke pesan terbaru dan fokus pada input
+st.markdown("""
+<script>
+    // Tunggu halaman dimuat
+    window.addEventListener('load', function() {
+        // Scroll ke bawah untuk melihat pesan terbaru
+        const chatArea = document.querySelector('.chat-area');
+        if (chatArea) {
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+        
+        // Fokus pada input
+        setTimeout(function() {
+            const inputElement = document.querySelector('input[data-baseweb="input"]');
+            if (inputElement) {
+                inputElement.focus();
+            }
+        }, 500);
+    });
+</script>
+""", unsafe_allow_html=True)
