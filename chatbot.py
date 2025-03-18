@@ -271,9 +271,9 @@ for message in st.session_state.messages:
         with message_container:
             # Add separator for visual distinction
             st.markdown("<hr style='margin: 10px 0; opacity: 0.8'> </hr>", unsafe_allow_html=True)
-            
+
             # Display "Bot" label above the message
-            st.markdown("<div style='font-weight: bold; margin-bottom: 5px;'>Answer</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-weight: bold; margin-bottom: 5px;'>Answer:</div>", unsafe_allow_html=True)
             
             # Display the message content with markdown support
             st.markdown(message['content'])
