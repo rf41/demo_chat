@@ -69,6 +69,7 @@ class OpenAIEmbeddingModel:
     def __init__(self, model: str, api_key: str):
         self.model = model
         self.api_key = api_key
+        self.max_tokens_per_batch = 8000  # OpenAI's limit for text-embedding models
     
     @lru_cache(maxsize=100)
     def embed_query(self, query: str) -> Optional[List[float]]:
@@ -83,45 +84,100 @@ class OpenAIEmbeddingModel:
             return None
     
     def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings in batches to avoid token limits"""
+        all_embeddings = []
+        
+        # Process in smaller batches
+        batch_size = 16  # Process fewer documents at once
+        
         try:
-            response = openai.Embedding.create(
-                input=texts,
-                model=self.model
-            )
-            return [embedding['embedding'] for embedding in response['data']]
+            for i in range(0, len(texts), batch_size):
+                batch_texts = texts[i:i+batch_size]
+                
+                # Check if any texts are too long and truncate if necessary
+                processed_texts = []
+                for text in batch_texts:
+                    # Approximate token count (rough estimate)
+                    if len(text) > 5000:  # Approximately 4000 tokens
+                        text = text[:5000]  # Truncate long texts
+                    processed_texts.append(text)
+                
+                # Generate embeddings for this batch
+                response = openai.Embedding.create(
+                    input=processed_texts,
+                    model=self.model
+                )
+                
+                # Extract embeddings
+                batch_embeddings = [item['embedding'] for item in response['data']]
+                all_embeddings.extend(batch_embeddings)
+                
+                # Add a small delay to avoid rate limiting
+                if i + batch_size < len(texts):
+                    import time
+                    time.sleep(0.5)
+                    
         except Exception as e:
             st.error(f"Error generating embeddings: {str(e)}")
-            return []
+            # Return partial embeddings if we got any
+            if not all_embeddings:
+                return []
+        
+        return all_embeddings
 
 # Pinecone vector store setup
 def setup_pinecone(config: Dict[str, str], documents: List[Document], embedding_model: OpenAIEmbeddingModel):
     """Setup or connect to Pinecone index"""
-    pc = Pinecone(api_key=config['pinecone_api_key'])
-    index_name = config['index_name']
+    try:
+        pc = Pinecone(api_key=config['pinecone_api_key'])
+        index_name = config['index_name']
+        
+        # Create index if it doesn't exist
+        if index_name not in pc.list_indexes().names():
+            pc.create_index(
+                name=index_name,
+                dimension=1536,
+                metric='cosine',
+                spec=ServerlessSpec(cloud='aws', region='us-west1')
+            )
+        
+        index = pc.Index(index_name)
+        
+        # Generate and store embeddings
+        texts_content = [doc.page_content for doc in documents]
+        
+        # Show progress for embedding generation
+        with st.spinner("Generating embeddings... This may take a while."):
+            embeddings = embedding_model.generate_embeddings(texts_content)
+        
+        # Upsert embeddings to Pinecone
+        if embeddings:
+            if len(embeddings) != len(texts_content):
+                st.warning(f"Warning: Generated {len(embeddings)} embeddings for {len(texts_content)} documents. Some documents may be missing.")
+                
+            # Upsert available embeddings
+            with st.spinner("Storing embeddings in Pinecone..."):
+                batch_size = 50  # Smaller batch size to avoid timeouts
+                for i in range(0, len(embeddings), batch_size):
+                    batch_docs = documents[i:min(i+batch_size, len(embeddings))]
+                    batch_embeddings = embeddings[i:i+batch_size]
+                    
+                    batch_items = []
+                    for j, (doc, embedding) in enumerate(zip(batch_docs, batch_embeddings)):
+                        # Create a unique ID for each document chunk
+                        doc_id = f"doc_{i+j}"
+                        # Include metadata with the document
+                        metadata = {"text": doc.page_content[:100]}  # Include a preview of content
+                        batch_items.append((doc_id, embedding, metadata))
+                    
+                    # Upsert this batch
+                    index.upsert(vectors=[(id, vector, meta) for id, vector, meta in batch_items])
+        
+        return PineconeVectorStore(index, embedding_model, text_key="page_content")
     
-    # Create index if it doesn't exist
-    if index_name not in pc.list_indexes().names():
-        pc.create_index(
-            name=index_name,
-            dimension=1536,
-            metric='cosine',
-            spec=ServerlessSpec(cloud='aws', region='us-west1')
-        )
-    
-    index = pc.Index(index_name)
-    
-    # Generate and store embeddings
-    texts_content = [doc.page_content for doc in documents]
-    embeddings = embedding_model.generate_embeddings(texts_content)
-    
-    # Upsert embeddings to Pinecone
-    if embeddings:
-        batch_size = 100
-        for i in range(0, len(embeddings), batch_size):
-            batch = [(str(i+j), embeddings[i+j]) for j in range(min(batch_size, len(embeddings)-i))]
-            index.upsert(batch)
-    
-    return PineconeVectorStore(index, embedding_model, text_key="page_content")
+    except Exception as e:
+        st.error(f"Error setting up Pinecone: {str(e)}")
+        return None
 
 def check_openai_connection(api_base: str) -> bool:
     """Check if OpenAI API is accessible"""
@@ -209,7 +265,9 @@ def main():
     embedding_model = OpenAIEmbeddingModel(model=config['text_model'], api_key=config['openai_api_key'])
     
     # Setup vector store and BM25
-    vectorstore = setup_pinecone(config, texts, embedding_model)  # Use texts instead of documents
+    vectorstore = setup_pinecone(config, texts, embedding_model)
+    
+    # Set up BM25 regardless of vector store success
     tokenized_texts = [doc.page_content.split() for doc in documents]
     bm25 = BM25Okapi(tokenized_texts)
     
