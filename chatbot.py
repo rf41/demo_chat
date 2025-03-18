@@ -213,7 +213,7 @@ st.markdown("""
     border-left: 5px solid #4CAF50;
 }
 .chat-message .message-content {
-    display: flex;
+    display: block;  /* Changed from flex to block */
     margin-top: 0;
 }
 .chat-message .message-header {
