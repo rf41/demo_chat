@@ -194,8 +194,39 @@ st.write("Ask me anything about my profile. All information is sourced from my L
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Checkbox to use knowledge base (default checked and disabled)
-# use_knowledge_base = st.checkbox("Use Knowledge Base", value=True, disabled=True)
+# Custom CSS untuk mempercantik tampilan chat
+st.markdown("""
+<style>
+.chat-message {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+.chat-message.user {
+    background-color: #e6f7ff;
+    border-left: 5px solid #2196F3;
+}
+.chat-message.bot {
+    background-color: #f0f0f0;
+    border-left: 5px solid #4CAF50;
+}
+.chat-message .message-content {
+    display: flex;
+    margin-top: 0;
+}
+.chat-message .message-header {
+    font-size: 0.8rem;
+    color: #888;
+    margin-bottom: 0.5rem;
+}
+.chat-container {
+    display: flex;
+    flex-direction: column-reverse;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Input form in the center
 st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
@@ -220,9 +251,24 @@ if submit_button and user_input:
     
     st.session_state.messages.append({"role": "bot", "content": response})
 
-# Display messages
-for message in st.session_state.messages:
+# Display messages in a container with reverse order (newest first)
+st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
+
+# Display messages in reverse order (newest first)
+for message in reversed(st.session_state.messages):
     if message["role"] == "user":
-        st.write(f"You: {message['content']}")
+        st.markdown(f"""
+        <div class="chat-message user">
+            <div class="message-header">You</div>
+            <div class="message-content">{message['content']}</div>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.write(f"Bot: {message['content']}")
+        st.markdown(f"""
+        <div class="chat-message bot">
+            <div class="message-header">Bot</div>
+            <div class="message-content">{message['content']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
