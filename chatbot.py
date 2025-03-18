@@ -97,11 +97,15 @@ class OpenAIEmbeddingModel:
         all_embeddings = []
         batch_size = 5  # Smaller batch size for reliability
         
-        with st.progress(0) as progress_bar:
+        try:
+            # Create a progress bar
+            progress_bar = st.progress(0)
+            
+            # Process in batches
             for i in range(0, len(texts), batch_size):
                 try:
                     # Update progress
-                    progress = min(i / len(texts), 1.0) if texts else 0
+                    progress = min(i / len(texts), 1.0) if len(texts) > 0 else 0
                     progress_bar.progress(progress)
                     
                     # Get batch of texts
@@ -140,6 +144,33 @@ class OpenAIEmbeddingModel:
                     st.error(f"Error in batch {i//batch_size + 1}: {str(e)}")
                     # Continue with next batch
                     time.sleep(1)  # Longer delay after error
+            
+            # Final progress update
+            if progress_bar is not None:
+                progress_bar.progress(1.0)
+                
+        except Exception as e:
+            st.error(f"Error setting up progress bar: {str(e)}")
+            # Fallback without progress bar
+            for i in range(0, len(texts), batch_size):
+                try:
+                    batch_texts = texts[i:i+batch_size]
+                    processed_texts = [text[:4000] if isinstance(text, str) and len(text) > 4000 else (text if isinstance(text, str) else " ") for text in batch_texts]
+                    
+                    if not processed_texts:
+                        continue
+                    
+                    response = openai.Embedding.create(
+                        input=processed_texts,
+                        model=self.model
+                    )
+                    
+                    batch_embeddings = [item['embedding'] for item in response['data']]
+                    all_embeddings.extend(batch_embeddings)
+                    time.sleep(0.5)
+                except Exception as e:
+                    st.error(f"Error in batch (fallback): {str(e)}")
+                    time.sleep(1)
         
         return all_embeddings
 
@@ -152,20 +183,38 @@ def setup_pinecone(config: Dict[str, str], documents: List[Document], embedding_
         index_name = config['index_name']
         
         # Check if index exists
-        indexes = pc.list_indexes()
-        if not hasattr(indexes, 'names') or index_name not in indexes.names():
+        try:
+            indexes = pc.list_indexes()
+            index_exists = hasattr(indexes, 'names') and index_name in indexes.names()
+        except:
+            # Try alternative approach if the first one fails
+            try:
+                all_indexes = pc.list_indexes().names()
+                index_exists = index_name in all_indexes
+            except:
+                index_exists = False
+                
+        if not index_exists:
             st.info(f"Creating new Pinecone index: {index_name}")
-            pc.create_index(
-                name=index_name,
-                dimension=1536,  # OpenAI embedding dimension
-                metric='cosine',
-                spec=ServerlessSpec(cloud='aws', region='us-west-2')  # Changed to us-west-2
-            )
-            # Wait for index to be ready
-            time.sleep(10)
+            try:
+                pc.create_index(
+                    name=index_name,
+                    dimension=1536,  # OpenAI embedding dimension
+                    metric='cosine',
+                    spec=ServerlessSpec(cloud='aws', region='us-west-2')  # Changed to us-west-2
+                )
+                # Wait for index to be ready
+                time.sleep(10)
+            except Exception as e:
+                st.error(f"Error creating index: {str(e)}")
+                return None
         
         # Connect to index
-        index = pc.Index(index_name)
+        try:
+            index = pc.Index(index_name)
+        except Exception as e:
+            st.error(f"Error connecting to index: {str(e)}")
+            return None
         
         # Prepare documents for embedding
         if not documents:
@@ -189,6 +238,11 @@ def setup_pinecone(config: Dict[str, str], documents: List[Document], embedding_
         if not embeddings:
             st.error("Failed to generate embeddings")
             return None
+        
+        if len(embeddings) != len(texts_content):
+            st.warning(f"Warning: Generated {len(embeddings)} embeddings for {len(texts_content)} documents")
+            # Adjust document list to match embeddings length
+            documents = documents[:len(embeddings)]
             
         # Upsert to Pinecone
         with st.spinner(f"Storing {len(embeddings)} embeddings in Pinecone..."):
@@ -330,66 +384,71 @@ def create_ui():
     return user_input, submit_button
 
 def main():
-    # Setup environment and load configuration
-    config = setup_environment()
-    
-    # Load and process documents
-    documents = load_documents()
-    if not documents:
-        st.error("No documents were loaded. Please check the data folder.")
-        return
-    
-    # Process documents - using the fixed approach
-    texts = split_documents(documents)
-    if not texts:
-        st.error("Failed to split documents into chunks.")
-        return
-    
-    # Setup embedding model
-    embedding_model = OpenAIEmbeddingModel(model=config['text_model'], api_key=config['openai_api_key'])
-    
-    # Set up BM25 first as a fallback
-    tokenized_texts = [doc.page_content.split() for doc in documents if hasattr(doc, 'page_content')]
-    bm25 = BM25Okapi(tokenized_texts) if tokenized_texts else None
-    
-    # Setup vector store - but allow the app to continue if this fails
     try:
-        st.info("Setting up Pinecone vector store...")
-        vectorstore = setup_pinecone(config, texts, embedding_model)
-        if vectorstore:
-            st.success("Pinecone vector store setup successful!")
-        else:
-            st.warning("Vector store setup failed. Continuing with BM25 only.")
-    except Exception as e:
-        st.error(f"Failed to set up vector store: {str(e)}")
+        # Setup environment and load configuration
+        config = setup_environment()
+        
+        # Load and process documents
+        documents = load_documents()
+        if not documents:
+            st.error("No documents were loaded. Please check the data folder.")
+            return
+        
+        # Process documents - using the fixed approach
+        texts = split_documents(documents)
+        if not texts:
+            st.error("Failed to split documents into chunks.")
+            return
+        
+        # Setup embedding model
+        embedding_model = OpenAIEmbeddingModel(model=config['text_model'], api_key=config['openai_api_key'])
+        
+        # Set up BM25 first as a fallback
+        tokenized_texts = [doc.page_content.split() for doc in documents if hasattr(doc, 'page_content')]
+        bm25 = BM25Okapi(tokenized_texts) if tokenized_texts else None
+        
+        # Setup vector store - but allow the app to continue if this fails
         vectorstore = None
+        try:
+            st.info("Setting up Pinecone vector store...")
+            vectorstore = setup_pinecone(config, texts, embedding_model)
+            if vectorstore:
+                st.success("Pinecone vector store setup successful!")
+            else:
+                st.warning("Vector store setup failed. Continuing with BM25 only.")
+        except Exception as e:
+            st.error(f"Failed to set up vector store: {str(e)}")
+            vectorstore = None
+        
+        # Create UI 
+        user_input, submit_button = create_ui()
+        
+        if submit_button and user_input:
+            # Clear previous messages
+            st.session_state.messages = []
+            st.session_state.messages.append({"role": "user", "content": user_input})
+            
+            # Create a placeholder for the loading message
+            loading_placeholder = st.empty()
+            loading_placeholder.markdown("⏳ Reading the CV and Posts, please wait.")
+            
+            # Get response
+            response = generate_response(user_input, vectorstore, bm25, documents, config)
+            
+            # Remove loading message
+            loading_placeholder.empty()
+            
+            st.session_state.messages.append({"role": "bot", "content": response})
+        
+        # Display messages
+        for message in st.session_state.messages:
+            if message["role"] == "user":
+                st.write(f"You: {message['content']}")
+            else:
+                st.write(f"Bot: {message['content']}")
     
-    # Create UI 
-    user_input, submit_button = create_ui()
-    
-    if submit_button and user_input:
-        # Clear previous messages
-        st.session_state.messages = []
-        st.session_state.messages.append({"role": "user", "content": user_input})
-        
-        # Create a placeholder for the loading message
-        loading_placeholder = st.empty()
-        loading_placeholder.markdown("⏳ Reading the CV and Posts, please wait.")
-        
-        # Get response
-        response = generate_response(user_input, vectorstore, bm25, documents, config)
-        
-        # Remove loading message
-        loading_placeholder.empty()
-        
-        st.session_state.messages.append({"role": "bot", "content": response})
-    
-    # Display messages
-    for message in st.session_state.messages:
-        if message["role"] == "user":
-            st.write(f"You: {message['content']}")
-        else:
-            st.write(f"Bot: {message['content']}")
+    except Exception as e:
+        st.error(f"Application error: {str(e)}")
 
 if __name__ == "__main__":
     main()
