@@ -233,8 +233,10 @@ st.markdown("""
 # Input form in the center
 st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 with st.form(key='chat_form'):
-    user_input = st.text_input("Your question:", key="input")
-    submit_button = st.form_submit_button(label='Ask')
+    user_input = st.text_input("Your question:", 
+                          key="input", 
+                          placeholder="Ask me about Ridwan's experience, skills, or background...")
+submit_button = st.form_submit_button(label='Ask')
 st.markdown("</div>", unsafe_allow_html=True)
 
 # Modify the Submit button handling section
