@@ -266,12 +266,16 @@ for message in st.session_state.messages:
     if message["role"] == "bot":
         # Create a container for the bot message
         with st.container():
-            # Display the styled header
-            st.markdown(f"""
+            # Start the styled chat message div
+            st.markdown("""
+            <div class="chat-message bot">
                 <div class="message-header">Bot</div>
             """, unsafe_allow_html=True)
             
-            # Display the message content with proper Markdown rendering
+            # Display the message content with proper Markdown rendering inside the container
             st.markdown(message['content'])
+            
+            # Close the chat message div
+            st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
