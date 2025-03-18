@@ -211,16 +211,25 @@ st.markdown("""
     flex-direction: column;
     position: relative;
     font-size: 1rem;
+    max-width: 80%;
 }
 
 .chat-message.user {
-    background-color: #f7f7f8;
-    border: 1px solid #e5e5e5;
+    background-color: #1e88e5;
+    color: white;
+    border: 1px solid #106cc8;
+    align-self: flex-end;
+    margin-left: auto;
+    border-top-right-radius: 0;
 }
 
 .chat-message.bot {
-    background-color: white;
-    border: 1px solid #e5e5e5;
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    align-self: flex-start;
+    margin-right: auto;
+    border-top-left-radius: 0;
 }
 
 .chat-message .message-content {
@@ -228,19 +237,21 @@ st.markdown("""
     margin-top: 0;
     width: 100%;
     white-space: pre-wrap;
+    overflow-wrap: break-word;
 }
 
 .chat-message .message-header {
-    font-size: 0.95rem;
-    font-weight: bold;
+    font-size: 0.85rem;
     margin-bottom: 0.5rem;
+    opacity: 0.8;
 }
 
 .chat-container {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    padding-bottom: 6rem;
+    padding-bottom: 7rem;
+    margin-bottom: 60px;
 }
 
 .input-container {
@@ -250,8 +261,9 @@ st.markdown("""
     right: 0;
     background-color: white;
     padding: 1rem 1rem 1.5rem 1rem;
-    z-index: 100;
+    z-index: 1000;
     border-top: 1px solid #e5e5e5;
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
     display: flex;
     justify-content: center;
 }
@@ -283,10 +295,24 @@ div[data-testid="stFormSubmitButton"] > button {
     visibility: hidden;
     position: absolute;
 }
+
+/* Fix untuk memastikan chat tidak tertutup input */
+.main {
+    padding-bottom: 70px;
+}
+
+footer {
+    visibility: hidden;
+}
+
+.stApp {
+    margin-bottom: 60px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# First display chat messages
+# Chat container with proper spacing for fixed input
+st.markdown('<div style="height: calc(100vh - 200px); overflow-y: auto; padding-bottom: 80px;">', unsafe_allow_html=True)
 st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 
 # Display messages in chronological order (oldest first)
@@ -309,23 +335,43 @@ for message in st.session_state.messages:
         """, unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # Add a placeholder for loading messages
 loading_placeholder = st.empty()
 
-# Input form at the bottom
-st.markdown("<div class='input-container'>", unsafe_allow_html=True)
-with st.form(key='chat_form'):
-    user_input = st.text_input("You:", placeholder="Type your message here...", key="input")
-    submit_button = st.form_submit_button(label='Send')
-st.markdown("</div>", unsafe_allow_html=True)
+# Input form at the bottom - dengan wrapper tambahan untuk memastikan posisi fixed
+st.markdown("""
+<div style="position: fixed; bottom: 0; left: 0; right: 0; background-color: white; z-index: 9999;">
+    <div class='input-container'>
+        <div style="width: 100%; max-width: 800px;">
+""", unsafe_allow_html=True)
+
+# Input form
+col1, col2 = st.columns([6, 1])
+with col1:
+    user_input = st.text_input("", placeholder="Type your message here...", key="input")
+with col2:
+    submit_button = st.button("Send", key="send")
+    
+st.markdown("""
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 if submit_button and user_input:
     # Add user message to session state
     st.session_state.messages.append({"role": "user", "content": user_input})
     
     # Create a placeholder for the loading message
-    loading_placeholder.markdown("⏳ Reading the CV, please wait.")
+    loading_placeholder.markdown("""
+    <div style="display: flex; justify-content: center; margin: 1rem;">
+        <div style="background-color: #f0f0f0; padding: 0.5rem 1rem; border-radius: 1rem;">
+            ⏳ Reading the CV, please wait...
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Get response
     response = chatbot_response(user_input)
