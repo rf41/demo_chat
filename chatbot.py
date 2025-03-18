@@ -194,70 +194,103 @@ st.write("Ask me anything about my profile. All information is sourced from my L
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Custom CSS untuk mempercantik tampilan chat
+# Custom CSS untuk mempercantik tampilan chat (seperti ChatGPT)
 st.markdown("""
 <style>
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 6rem;
+    max-width: 800px;
+}
+
 .chat-message {
-    padding: 1rem;
+    padding: 1.5rem;
     border-radius: 0.5rem;
     margin-bottom: 1rem;
     display: flex;
     flex-direction: column;
+    position: relative;
+    font-size: 1rem;
 }
+
 .chat-message.user {
-    background-color: #e6f7ff;
-    border-left: 5px solid #2196F3;
+    background-color: #f7f7f8;
+    border: 1px solid #e5e5e5;
 }
+
 .chat-message.bot {
-    background-color: #f0f0f0;
-    border-left: 5px solid #4CAF50;
+    background-color: white;
+    border: 1px solid #e5e5e5;
 }
+
 .chat-message .message-content {
     display: block;
     margin-top: 0;
     width: 100%;
     white-space: pre-wrap;
 }
+
 .chat-message .message-header {
-    font-size: 0.8rem;
-    color: #888;
+    font-size: 0.95rem;
+    font-weight: bold;
     margin-bottom: 0.5rem;
 }
+
 .chat-container {
     display: flex;
-    flex-direction: column-reverse;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-bottom: 6rem;
+}
+
+.input-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: white;
+    padding: 1rem 1rem 1.5rem 1rem;
+    z-index: 100;
+    border-top: 1px solid #e5e5e5;
+    display: flex;
+    justify-content: center;
+}
+
+.input-container form {
+    max-width: 800px;
+    width: 100%;
+}
+
+.stTextInput input {
+    border-radius: 0.75rem !important;
+    padding: 0.75rem 1rem !important;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border: 1px solid #e5e5e5 !important;
+}
+
+.stButton button {
+    border-radius: 0.75rem !important;
+    padding: 0.25rem 1rem !important;
+}
+
+.stForm {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+div[data-testid="stFormSubmitButton"] > button {
+    visibility: hidden;
+    position: absolute;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Input form in the center
-st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
-with st.form(key='chat_form'):
-    user_input = st.text_input("You:", key="input")
-    submit_button = st.form_submit_button(label='Send')
-st.markdown("</div>", unsafe_allow_html=True)
-
-if submit_button and user_input:
-    # Add to existing messages
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    
-    # Create a placeholder for the loading message
-    loading_placeholder = st.empty()
-    loading_placeholder.markdown("⏳ Reading the CV, please wait.")
-    
-    # Get response
-    response = chatbot_response(user_input)
-    
-    # Remove loading message
-    loading_placeholder.empty()
-    
-    st.session_state.messages.append({"role": "bot", "content": response})
-
-# Display messages in a container with reverse order (newest first)
+# First display chat messages
 st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 
-# Ubah format tampilan pesan
-for message in reversed(st.session_state.messages):
+# Display messages in chronological order (oldest first)
+for message in st.session_state.messages:
     if message["role"] == "user":
         st.markdown(f"""
         <div class="chat-message user">
@@ -276,3 +309,32 @@ for message in reversed(st.session_state.messages):
         """, unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
+
+# Add a placeholder for loading messages
+loading_placeholder = st.empty()
+
+# Input form at the bottom
+st.markdown("<div class='input-container'>", unsafe_allow_html=True)
+with st.form(key='chat_form'):
+    user_input = st.text_input("You:", placeholder="Type your message here...", key="input")
+    submit_button = st.form_submit_button(label='Send')
+st.markdown("</div>", unsafe_allow_html=True)
+
+if submit_button and user_input:
+    # Add user message to session state
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    
+    # Create a placeholder for the loading message
+    loading_placeholder.markdown("⏳ Reading the CV, please wait.")
+    
+    # Get response
+    response = chatbot_response(user_input)
+    
+    # Remove loading message
+    loading_placeholder.empty()
+    
+    # Add bot response to session state
+    st.session_state.messages.append({"role": "bot", "content": response})
+    
+    # Trigger a rerun to refresh the chat display
+    st.experimental_rerun()
