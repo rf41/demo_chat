@@ -21,6 +21,9 @@ st.markdown("""
 header{
     display: none!important;
 }
+._profileContainer_gzau3_53{
+    display: none!important;
+}
 </style>
 """, unsafe_allow_html=True)
 
