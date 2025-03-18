@@ -269,6 +269,9 @@ for message in st.session_state.messages:
         
         # Use a vertical layout instead of columns
         with message_container:
+            # Add separator for visual distinction
+            st.markdown("<hr style='margin: 10px 0; opacity: 0.8'> </hr>", unsafe_allow_html=True)
+            
             # Display "Bot" label above the message
             st.markdown("<div style='font-weight: bold; margin-bottom: 5px;'>Answer</div>", unsafe_allow_html=True)
             
@@ -276,6 +279,6 @@ for message in st.session_state.messages:
             st.markdown(message['content'])
             
             # Add separator for visual distinction
-            st.markdown("<hr style='margin: 10px 0; opacity: 0.3'> </hr>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 10px 0; opacity: 0.8'> </hr>", unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
