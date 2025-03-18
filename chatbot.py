@@ -235,8 +235,12 @@ with st.form(key='chat_form'):
     submit_button = st.form_submit_button(label='Send')
 st.markdown("</div>", unsafe_allow_html=True)
 
+# Modify the Submit button handling section
 if submit_button and user_input:
-    # Add to existing messages
+    # Clear previous messages before adding new ones
+    st.session_state.messages = []
+    
+    # Add only the user input to session state (for processing)
     st.session_state.messages.append({"role": "user", "content": user_input})
     
     # Create a placeholder for the loading message
@@ -249,21 +253,15 @@ if submit_button and user_input:
     # Remove loading message
     loading_placeholder.empty()
     
-    st.session_state.messages.append({"role": "bot", "content": response})
+    # Add only the bot response to display
+    st.session_state.messages = [{"role": "bot", "content": response}]
 
-# Display messages in a container with reverse order (newest first)
+# Display messages section - modify to only show bot responses
 st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 
-# Display messages in reverse order (newest first)
-for message in reversed(st.session_state.messages):
-    if message["role"] == "user":
-        st.markdown(f"""
-        <div class="chat-message user">
-            <div class="message-header">You</div>
-            <div class="message-content">{message['content']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
+# Display only bot messages
+for message in st.session_state.messages:
+    if message["role"] == "bot":
         st.markdown(f"""
         <div class="chat-message bot">
             <div class="message-header">Bot</div>
