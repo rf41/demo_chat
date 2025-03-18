@@ -46,11 +46,21 @@ def load_documents(data_folder: str = "data") -> List[Document]:
                 st.warning(f"Error loading {file}: {str(e)}")
     return documents
 
+# Fix for the unhashable type error
 @st.cache_data
+def split_text_documents(texts: List[str], chunk_size: int = 500, chunk_overlap: int = 50) -> List[str]:
+    """Split text documents into smaller chunks"""
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    return text_splitter.split_text(texts)
+
 def split_documents(documents: List[Document], chunk_size: int = 500, chunk_overlap: int = 50) -> List[Document]:
     """Split documents into smaller chunks"""
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    return text_splitter.split_documents(documents)
+    # Extract text content
+    texts = [doc.page_content for doc in documents]
+    # Split text using cached function
+    split_texts = split_text_documents(texts, chunk_size, chunk_overlap)
+    # Convert back to Documents
+    return [Document(page_content=text) for text in split_texts]
 
 # Vector embeddings
 class OpenAIEmbeddingModel:
@@ -189,17 +199,19 @@ def main():
     
     # Load and process documents
     documents = load_documents()
+    
+    # Process documents - using the fixed approach
     texts = split_documents(documents)
     
     # Setup embedding model
     embedding_model = OpenAIEmbeddingModel(model=config['text_model'], api_key=config['openai_api_key'])
     
     # Setup vector store and BM25
-    vectorstore = setup_pinecone(config, documents, embedding_model)
+    vectorstore = setup_pinecone(config, texts, embedding_model)  # Use texts instead of documents
     tokenized_texts = [doc.page_content.split() for doc in documents]
     bm25 = BM25Okapi(tokenized_texts)
     
-    # Create UI
+    # Create UI 
     user_input, submit_button = create_ui()
     
     if submit_button and user_input:
