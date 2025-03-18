@@ -268,12 +268,10 @@ for message in st.session_state.messages:
         with st.container():
             # Display the styled header
             st.markdown(f"""
-            <div class="chat-message bot">
                 <div class="message-header">Bot</div>
             """, unsafe_allow_html=True)
             
             # Display the message content with proper Markdown rendering
             st.markdown(message['content'])
-            st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
