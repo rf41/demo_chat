@@ -10,6 +10,11 @@ from pinecone import Pinecone, ServerlessSpec
 from rank_bm25 import BM25Okapi
 import requests
 import base64
+from concurrent.futures import ThreadPoolExecutor
+
+# Add this near the top of your file
+if "query_cache" not in st.session_state:
+    st.session_state.query_cache = {}
 
 # Set environment variables from secrets
 os.environ['PINECONE_API_KEY'] = st.secrets["PINECONE_API_KEY"]
@@ -86,8 +91,13 @@ class OpenAIEmbeddingModel:
         self.api_key = api_key
         openai.api_key = api_key
 
+    # Modify your embed_query method in OpenAIEmbeddingModel
     def embed_query(self, query):
         try:
+            # Check if query is in cache
+            if query in st.session_state.query_cache:
+                return st.session_state.query_cache[query]
+                
             if not isinstance(query, str):
                 raise ValueError("Query must be a string.")
             print(f"Embedding query: {query}")  # Debug statement
@@ -96,7 +106,8 @@ class OpenAIEmbeddingModel:
                 model=self.model
             )
             embedding = response['data'][0]['embedding']
-            print(f"Generated query embedding: {embedding}")  # Debug statement
+            # Cache the result
+            st.session_state.query_cache[query] = embedding
             return embedding
         except Exception as e:
             print(f"Error embedding query: {e}")
@@ -118,24 +129,37 @@ def check_openai_connection():
         print(f"Koneksi ke model gagal: {e}")
         return False
 
-# Inisialisasi LLM
+# New helper functions
+def bm25_search(query):
+    tokenized_query = query.split()
+    return bm25.get_top_n(tokenized_query, documents, n=3)
+    
+def vector_search(query):
+    if vectorstore and query:
+        return vectorstore.similarity_search(query, k=10)
+    return []
+
+# Modify the chatbot_response function
 def chatbot_response(user_input):
-    user_input = user_input.strip()  # Bersihkan input
+    user_input = user_input.strip()
     if not user_input:
         return "Input tidak boleh kosong."
     
-    # BM25 search
-    tokenized_query = user_input.split()
-    bm25_scores = bm25.get_scores(tokenized_query)
-    top_n = bm25.get_top_n(tokenized_query, documents, n=3)
-    
-    retrieved_docs = []
-    if vectorstore and user_input:
-        retrieved_docs = vectorstore.similarity_search(user_input, k=10) if vectorstore else []
-        faiss_results = ''.join([doc.page_content[:200] + '...' for doc in retrieved_docs if hasattr(doc, 'page_content')])  # Menampilkan 200 karakter pertama dari tiap hasil
-        context = "".join([doc.page_content for doc in retrieved_docs if hasattr(doc, 'page_content')])
-    else:
-        context = ""
+    # Use ThreadPoolExecutor to run searches in parallel
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        # Submit both search tasks
+        bm25_future = executor.submit(bm25_search, user_input)
+        vector_future = executor.submit(vector_search, user_input)
+        
+        # Show detailed progress
+        loading_placeholder.markdown("⏳ Searching knowledge base...")
+        
+        # Get results
+        top_n = bm25_future.result()
+        retrieved_docs = vector_future.result()
+        
+        # Show detailed progress
+        loading_placeholder.markdown("⏳ Analyzing relevant information...")
     
     # Combine BM25 and vectorstore results
     combined_results = top_n + retrieved_docs
@@ -151,6 +175,10 @@ def chatbot_response(user_input):
     try:
         if not check_openai_connection():
             return "Koneksi ke model gagal. Silakan coba lagi nanti."
+        
+        # Show detailed progress
+        loading_placeholder.markdown("⏳ Generating response...")
+        
         response = openai.ChatCompletion.create(
             model=st.secrets["MODEL"],
             messages=messages
@@ -177,8 +205,7 @@ with st.form(key='chat_form'):
 st.markdown("</div>", unsafe_allow_html=True)
 
 if submit_button and user_input:
-    # Clear previous messages
-    st.session_state.messages = []
+    # Add to existing messages
     st.session_state.messages.append({"role": "user", "content": user_input})
     
     # Create a placeholder for the loading message
