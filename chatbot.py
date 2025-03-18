@@ -264,16 +264,26 @@ st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 # Display only bot messages
 for message in st.session_state.messages:
     if message["role"] == "bot":
-        # Create styled container with direct HTML/CSS
+        # Create a styled container for the bot message
         st.markdown("""
-        <div style="background-color: #f0f0f0; border-left: 5px solid #4CAF50; padding: 1rem; 
-        border-radius: 0.5rem; margin-bottom: 1rem;">
-            <div style="font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;">Bot</div>
-            <div id="bot-content"></div>
-        </div>
+        <style>
+        .bot-message {
+            background-color: #f0f0f0;
+            border-left: 5px solid #4CAF50;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        </style>
         """, unsafe_allow_html=True)
         
-        # Display markdown content separately to preserve formatting
-        st.markdown(message['content'])
+        # Create a container with CSS class
+        col1, col2 = st.columns([12, 1])
+        with col1:
+            # Add the header first
+            st.markdown("<div style='font-size: 0.8rem; color: #888; margin-bottom: 0.5rem;'>Bot</div>", unsafe_allow_html=True)
+            
+            # Display the content with markdown formatting
+            st.markdown(f"<div class='bot-message'>{message['content']}</div>", unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
