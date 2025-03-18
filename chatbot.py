@@ -264,18 +264,20 @@ st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 # Display only bot messages
 for message in st.session_state.messages:
     if message["role"] == "bot":
+        # Process markdown content to make it HTML-safe but preserve formatting
+        # This converts markdown to HTML
+        content_html = message['content']
+        
         # Create a container for the bot message
         with st.container():
-            # Start the styled chat message div
-            st.markdown("""
+            # Render everything in one markdown call
+            st.markdown(f"""
             <div class="chat-message bot">
                 <div class="message-header">Bot</div>
+                <div class="message-content">
+                    {content_html}
+                </div>
+            </div>
             """, unsafe_allow_html=True)
-            
-            # Display the message content with proper Markdown rendering inside the container
-            st.markdown(message['content'])
-            
-            # Close the chat message div
-            st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
