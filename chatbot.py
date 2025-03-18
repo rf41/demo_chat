@@ -213,8 +213,10 @@ st.markdown("""
     border-left: 5px solid #4CAF50;
 }
 .chat-message .message-content {
-    display: flex;
+    display: block;
     margin-top: 0;
+    width: 100%;
+    white-space: pre-wrap;
 }
 .chat-message .message-header {
     font-size: 0.8rem;
@@ -254,7 +256,7 @@ if submit_button and user_input:
 # Display messages in a container with reverse order (newest first)
 st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 
-# Display messages in reverse order (newest first)
+# Ubah format tampilan pesan
 for message in reversed(st.session_state.messages):
     if message["role"] == "user":
         st.markdown(f"""
@@ -264,10 +266,12 @@ for message in reversed(st.session_state.messages):
         </div>
         """, unsafe_allow_html=True)
     else:
+        # Proses konten bot untuk memastikan paragraf baru tampil dengan benar
+        content = message['content'].replace('\n', '<br>')
         st.markdown(f"""
         <div class="chat-message bot">
             <div class="message-header">Bot</div>
-            <div class="message-content">{message['content']}</div>
+            <div class="message-content">{content}</div>
         </div>
         """, unsafe_allow_html=True)
 
