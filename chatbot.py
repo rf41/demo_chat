@@ -48,19 +48,21 @@ def load_documents(data_folder: str = "data") -> List[Document]:
 
 # Fix for the unhashable type error
 @st.cache_data
-def split_text_documents(texts: List[str], chunk_size: int = 500, chunk_overlap: int = 50) -> List[str]:
-    """Split text documents into smaller chunks"""
+def split_text_documents(text: str, chunk_size: int = 500, chunk_overlap: int = 50) -> List[str]:
+    """Split a single text document into smaller chunks"""
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    return text_splitter.split_text(texts)
+    return text_splitter.split_text(text)
 
 def split_documents(documents: List[Document], chunk_size: int = 500, chunk_overlap: int = 50) -> List[Document]:
     """Split documents into smaller chunks"""
-    # Extract text content
-    texts = [doc.page_content for doc in documents]
-    # Split text using cached function
-    split_texts = split_text_documents(texts, chunk_size, chunk_overlap)
-    # Convert back to Documents
-    return [Document(page_content=text) for text in split_texts]
+    all_splits = []
+    # Process each document individually
+    for doc in documents:
+        # Split text using cached function
+        splits = split_text_documents(doc.page_content, chunk_size, chunk_overlap)
+        # Convert back to Documents and add to results
+        all_splits.extend([Document(page_content=text) for text in splits])
+    return all_splits
 
 # Vector embeddings
 class OpenAIEmbeddingModel:
