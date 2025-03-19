@@ -14,15 +14,18 @@ from concurrent.futures import ThreadPoolExecutor
 
 #
 st.markdown("""
-<style>
-.st-emotion-cache-12fmjuu{
-    display: none!important;
-}
-header{
-    display: none!important;
-}
-</style>
-""", unsafe_allow_html=True)
+            <style>
+                .st-emotion-cache-12fmjuu{
+                    display: none!important;
+                }
+                header{
+                    display: none!important;
+                }
+                ._terminalButton_rix23_138{
+                    display: none!important;
+             }
+            </style>
+            """, unsafe_allow_html=True)
 
 # Add this near the top of your file
 if "query_cache" not in st.session_state:
