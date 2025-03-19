@@ -21,9 +21,6 @@ st.markdown("""
                 header{
                     display: none!important;
                 }
-                button{
-                    display: none!important;
-                }
                 ._terminalButton_rix23_138{
                     display: none!important;
              }
