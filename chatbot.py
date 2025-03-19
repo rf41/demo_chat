@@ -23,7 +23,25 @@ st.markdown("""
                 }
                 ._terminalButton_rix23_138{
                     display: none!important;
-             }
+                }
+                /* Remove extra space at the top */
+                .block-container {
+                    padding-top: 1rem !important;
+                    margin-top: 0 !important;
+                }
+                /* Hide Streamlit's default elements */
+                .stDeployButton, footer, .reportview-container .main footer {
+                    display: none !important;
+                }
+                /* Remove padding and margin from main container */
+                .main .block-container {
+                    padding: 1rem !important;
+                    margin-top: 0 !important;
+                }
+                /* Hide development info and version info */
+                .stDecoration, .stStatusWidget {
+                    display: none !important;
+                }
             </style>
             """, unsafe_allow_html=True)
 
@@ -76,28 +94,28 @@ def generate_embeddings(texts):
     try:
         if not isinstance(texts, list) or not all(isinstance(text, str) for text in texts):
             raise ValueError("Input texts must be a list of strings.")
-        print(f"Generating embeddings for texts: {texts}")  # Debug statement
+        #print(f"Generating embeddings for texts: {texts}")  # Debug statement
         response = openai.Embedding.create(
             input=texts,
             model=st.secrets["TEXT_MODEL"]
         )
         embeddings = [embedding['embedding'] for embedding in response['data']]
-        print(f"Generated embeddings: {embeddings}")  # Debug statement
+        #print(f"Generated embeddings: {embeddings}")  # Debug statement
         return embeddings
     except Exception as e:
-        print(f"Error generating embeddings: {e}")
+        #print(f"Error generating embeddings: {e}")
         return []
 
 # Membuat atau memuat Pinecone index
 texts_content = [doc.page_content for doc in documents]
-print(f"texts_content: {texts_content}")  # Debug statement
+#print(f"texts_content: {texts_content}")  # Debug statement
 embeddings = generate_embeddings(texts_content)
 
 # Ensure embeddings are added to Pinecone
 if embeddings:
     for i, embedding in enumerate(embeddings):
         index.upsert([(str(i), embedding)])
-    print("Embeddings successfully upserted to Pinecone.")
+    #print("Embeddings successfully upserted to Pinecone.")
 
 # Initialize PineconeVectorStore with the correct embedding model
 class OpenAIEmbeddingModel:
@@ -115,7 +133,7 @@ class OpenAIEmbeddingModel:
                 
             if not isinstance(query, str):
                 raise ValueError("Query must be a string.")
-            print(f"Embedding query: {query}")  # Debug statement
+            #print(f"Embedding query: {query}")  # Debug statement
             response = openai.Embedding.create(
                 input=[query],
                 model=self.model
@@ -125,7 +143,7 @@ class OpenAIEmbeddingModel:
             st.session_state.query_cache[query] = embedding
             return embedding
         except Exception as e:
-            print(f"Error embedding query: {e}")
+            #print(f"Error embedding query: {e}")
             return None
 
 embedding_model = OpenAIEmbeddingModel(model=st.secrets["TEXT_MODEL"], api_key=OPENAI_API_KEY)
